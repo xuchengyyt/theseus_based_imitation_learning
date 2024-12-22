@@ -1,6 +1,6 @@
 import torch
 import theseus as th
-from utils.train_utils import project_to_frenet_frame
+# from utils.train_utils import project_to_frenet_frame
 
 class MotionPlanner:
     def __init__(self, trajectory_len, feature_len, device, test=False):
@@ -143,43 +143,43 @@ def lane_theta(optim_vars, aux_vars):
     return lane_error
 
 # 安全性cosy
-def safety(optim_vars, aux_vars):
-    control = optim_vars[0].tensor.view(-1, 50, 2)
-    neighbors = aux_vars[0].tensor.permute(0, 2, 1, 3)
-    current_state = aux_vars[1].tensor
-    ref_line = aux_vars[2].tensor
+# def safety(optim_vars, aux_vars):
+#     control = optim_vars[0].tensor.view(-1, 50, 2)
+#     neighbors = aux_vars[0].tensor.permute(0, 2, 1, 3)
+#     current_state = aux_vars[1].tensor
+#     ref_line = aux_vars[2].tensor
 
-    actor_mask = torch.ne(current_state, 0)[:, 1:, -1]
-    ego_current_state = current_state[:, 0]
-    ego = bicycle_model(control, ego_current_state)
-    ego_len, ego_width = ego_current_state[:, -3], ego_current_state[:, -2]
-    neighbors_current_state = current_state[:, 1:]
-    neighbors_len, neighbors_width = neighbors_current_state[..., -3], neighbors_current_state[..., -2]
+#     actor_mask = torch.ne(current_state, 0)[:, 1:, -1]
+#     ego_current_state = current_state[:, 0]
+#     ego = bicycle_model(control, ego_current_state)
+#     ego_len, ego_width = ego_current_state[:, -3], ego_current_state[:, -2]
+#     neighbors_current_state = current_state[:, 1:]
+#     neighbors_len, neighbors_width = neighbors_current_state[..., -3], neighbors_current_state[..., -2]
 
-    l_eps = (ego_width.unsqueeze(1) + neighbors_width)/2 + 0.5
-    frenet_neighbors = torch.stack([project_to_frenet_frame(neighbors[:, :, i].detach(), ref_line) for i in range(neighbors.shape[2])], dim=2)
-    frenet_ego = project_to_frenet_frame(ego.detach(), ref_line)
+#     l_eps = (ego_width.unsqueeze(1) + neighbors_width)/2 + 0.5
+#     frenet_neighbors = torch.stack([project_to_frenet_frame(neighbors[:, :, i].detach(), ref_line) for i in range(neighbors.shape[2])], dim=2)
+#     frenet_ego = project_to_frenet_frame(ego.detach(), ref_line)
     
-    safe_error = []
-    for t in [0, 2, 5, 9, 14, 19, 24, 29, 39, 49]: # key frames
-        # find objects of interest
-        l_distance = torch.abs(frenet_ego[:, t, 1].unsqueeze(1) - frenet_neighbors[:, t, :, 1])
-        s_distance = frenet_neighbors[:, t, :, 0] - frenet_ego[:, t, 0].unsqueeze(-1)
-        interactive = torch.logical_and(s_distance > 0, l_distance < l_eps) * actor_mask
+#     safe_error = []
+#     for t in [0, 2, 5, 9, 14, 19, 24, 29, 39, 49]: # key frames
+#         # find objects of interest
+#         l_distance = torch.abs(frenet_ego[:, t, 1].unsqueeze(1) - frenet_neighbors[:, t, :, 1])
+#         s_distance = frenet_neighbors[:, t, :, 0] - frenet_ego[:, t, 0].unsqueeze(-1)
+#         interactive = torch.logical_and(s_distance > 0, l_distance < l_eps) * actor_mask
 
-        # find closest object
-        distances = torch.norm(ego[:, t, :2].unsqueeze(1) - neighbors[:, t, :, :2], dim=-1).squeeze(1)
-        distances = torch.masked_fill(distances, torch.logical_not(interactive), 100)
-        distance, index = torch.min(distances, dim=1)
-        s_eps = (ego_len + torch.index_select(neighbors_len, 1, index)[:, 0])/2 + 5
+#         # find closest object
+#         distances = torch.norm(ego[:, t, :2].unsqueeze(1) - neighbors[:, t, :, :2], dim=-1).squeeze(1)
+#         distances = torch.masked_fill(distances, torch.logical_not(interactive), 100)
+#         distance, index = torch.min(distances, dim=1)
+#         s_eps = (ego_len + torch.index_select(neighbors_len, 1, index)[:, 0])/2 + 5
 
-        # calculate cost
-        error = (s_eps - distance) * (distance < s_eps)
-        safe_error.append(error)
+#         # calculate cost
+#         error = (s_eps - distance) * (distance < s_eps)
+#         safe_error.append(error)
 
-    safe_error = torch.stack(safe_error, dim=1)
+#     safe_error = torch.stack(safe_error, dim=1)
 
-    return safe_error
+#     return safe_error
 
 def cost_function(objective, control_variables, current_state, predictions, ref_line, cost_function_weights, vectorize=True):
     # travel efficiency
@@ -189,12 +189,12 @@ def cost_function(objective, control_variables, current_state, predictions, ref_
     # comfort
     acc_cost = th.AutoDiffCostFunction([control_variables], acceleration, 50, cost_function_weights[1], autograd_vectorize=vectorize, name="acceleration")
     objective.add(acc_cost)
-    jerk_cost = th.AutoDiffCostFunction([control_variables], jerk, 49, cost_function_weights[2], autograd_vectorize=vectorize, name="jerk")
-    objective.add(jerk_cost)
+    # jerk_cost = th.AutoDiffCostFunction([control_variables], jerk, 49, cost_function_weights[2], autograd_vectorize=vectorize, name="jerk")
+    # objective.add(jerk_cost)
     steering_cost = th.AutoDiffCostFunction([control_variables], steering, 50, cost_function_weights[3], autograd_vectorize=vectorize, name="steering")
     objective.add(steering_cost)
-    steering_change_cost = th.AutoDiffCostFunction([control_variables], steering_change, 49, cost_function_weights[4], autograd_vectorize=vectorize, name="steering_change")
-    objective.add(steering_change_cost)
+    # steering_change_cost = th.AutoDiffCostFunction([control_variables], steering_change, 49, cost_function_weights[4], autograd_vectorize=vectorize, name="steering_change")
+    # objective.add(steering_change_cost)
     
     # lane
     lane_xy_cost = th.AutoDiffCostFunction([control_variables], lane_xy, 50, cost_function_weights[5], aux_vars=[ref_line, current_state], autograd_vectorize=vectorize, name="lane_xy")
@@ -205,7 +205,7 @@ def cost_function(objective, control_variables, current_state, predictions, ref_
     # traffic rules
     # red_light_cost = th.AutoDiffCostFunction([control_variables], red_light_violation, 50, cost_function_weights[7], aux_vars=[ref_line, current_state], autograd_vectorize=vectorize, name="red_light")
     # objective.add(red_light_cost)
-    safety_cost = th.AutoDiffCostFunction([control_variables], safety, 10, cost_function_weights[8], aux_vars=[predictions, current_state, ref_line], autograd_vectorize=vectorize, name="safety")
-    objective.add(safety_cost)
+    # safety_cost = th.AutoDiffCostFunction([control_variables], safety, 10, cost_function_weights[8], aux_vars=[predictions, current_state, ref_line], autograd_vectorize=vectorize, name="safety")
+    # objective.add(safety_cost)
 
     return objective
